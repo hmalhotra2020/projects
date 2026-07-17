@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: gateway
+  cloud:
+    gateway:
+      routes:
+      - id: catalog-service
+        uri: lb://catalog
+        predicates:
+        - Path=/catalog/**
+      - id: pricing-service
+        uri: lb://pricing
+        predicates:
+        - Path=/pricing/**
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
+  instance:
+    preferIpAddress: false
+
+
+
+spring.cloud.gateway.metrics.enabled: true
+spring.cloud.gateway.discovery.locator.enabled: true
+spring.cloud.gateway.discovery.locator.url-expression: "uri"
+
+---
+
+spring:
+  profiles: docker
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: ${EUREKA_URI:http://registry:8761/eureka}
+  instance:
+    preferIpAddress: true
+

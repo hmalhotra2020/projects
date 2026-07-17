@@ -1,0 +1,40 @@
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
+  instance:
+    preferIpAddress: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+server:
+  port: 8081
+  servlet:
+    contextPath: /catalog
+
+spring:
+  application:
+    name: catalog
+
+pricingUrl: http://localhost:8006/pricing/price
+
+logging.level.org.zalando.logbook: TRACE
+logging.file: catalog-service.log
+
+---
+
+spring:
+  profiles: docker
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: ${EUREKA_URI:http://registry:8761/eureka}
+  instance:
+    preferIpAddress: true
+
+pricingUrl: http://api:8006/pricing/price

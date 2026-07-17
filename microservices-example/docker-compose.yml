@@ -1,0 +1,46 @@
+version: '3.7'
+
+services:
+  registry:
+    build: ./registry
+    image: registry:latest
+    container_name: "registry"
+    command: sleep 300
+    ports:
+      - "8761:8761"
+    networks:
+      - backend
+  pricing:
+    build: ./pricing
+    image: pricing:latest
+    container_name: "pricing"
+    command: sleep 300
+    depends_on:
+      - "registry"
+    ports:
+      - "8082:8082"
+    networks:
+      - backend
+  catalog:
+    build: ./catalog
+    image: catalog:latest
+    container_name: "catalog"
+    command: sleep 300
+    depends_on:
+      - "pricing"
+    ports:
+      - "8081:8081"
+    networks:
+      - backend
+  api:
+    build: ./api
+    image: api:latest
+    container_name: "api"
+    command: sleep 300
+    ports:
+      - "8006:8006"
+    networks:
+      - backend
+
+networks:
+  backend:
