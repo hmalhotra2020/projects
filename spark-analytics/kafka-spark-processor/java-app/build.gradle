@@ -1,0 +1,42 @@
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+configurations {
+    sparkDeps
+    implementation.extendsFrom(sparkDeps)
+}
+
+dependencies {
+    sparkDeps('org.apache.spark:spark-core_2.13:3.5.1') { transitive = true }
+    sparkDeps('org.apache.spark:spark-sql_2.13:3.5.1') { transitive = true }
+    sparkDeps('org.apache.spark:spark-streaming_2.13:3.5.1') { transitive = true }
+    sparkDeps('org.apache.spark:spark-streaming-kafka-0-10_2.13:3.5.1') { transitive = true }
+    implementation 'org.apache.kafka:kafka-clients:3.6.1'
+    implementation 'org.postgresql:postgresql:42.7.2'
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+}
+
+shadowJar {
+    zip64 = true
+    mergeServiceFiles()
+    manifest {
+        attributes 'Main-Class': 'com.example.processor.SparkProcessorApp'
+    }
+}
+
+tasks.named('build').configure {
+    dependsOn shadowJar
+}

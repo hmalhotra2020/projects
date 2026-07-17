@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🏪 Petrol Pumps Analytics</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js 4.x -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* -----------------------------------------------------------------------
+       Reset & root tokens
+    ----------------------------------------------------------------------- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-deep:      #0f172a;
+      --bg-card:      rgba(255, 255, 255, 0.05);
+      --border-card:  rgba(255, 255, 255, 0.10);
+      --grad-start:   #7c3aed;
+      --grad-end:     #2563eb;
+      --purple:       #7c3aed;
+      --blue:         #2563eb;
+      --cyan:         #06b6d4;
+      --green:        #10b981;
+      --amber:        #f59e0b;
+      --text-primary: #f1f5f9;
+      --text-muted:   #94a3b8;
+      --radius-lg:    16px;
+      --radius-md:    10px;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: var(--bg-deep);
+      color: var(--text-primary);
+    }
+
+    /* -----------------------------------------------------------------------
+       Layout
+    ----------------------------------------------------------------------- */
+    .layout {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* -----------------------------------------------------------------------
+       Header
+    ----------------------------------------------------------------------- */
+    header {
+      background: linear-gradient(135deg, var(--grad-start) 0%, var(--grad-end) 100%);
+      padding: 28px 32px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Ccircle cx='30' cy='30' r='12'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
+      pointer-events: none;
+    }
+
+    .header-inner {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .header-title-group {}
+
+    .header-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: #fff;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .header-subtitle {
+      margin-top: 4px;
+      font-size: 0.875rem;
+      font-weight: 400;
+      color: rgba(255,255,255,0.75);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+      box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+      animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%   { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+      70%  { box-shadow: 0 0 0 8px rgba(74, 222, 128, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+    }
+
+    /* -----------------------------------------------------------------------
+       Status bar
+    ----------------------------------------------------------------------- */
+    .status-bar {
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      padding: 8px 32px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .status-bar span { font-weight: 500; color: var(--cyan); }
+
+    /* -----------------------------------------------------------------------
+       Stat pills in header
+    ----------------------------------------------------------------------- */
+    .stat-pills {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 999px;
+      padding: 6px 16px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pill .pill-label { font-weight: 400; opacity: 0.8; }
+
+    /* -----------------------------------------------------------------------
+       Main grid
+    ----------------------------------------------------------------------- */
+    main {
+      flex: 1;
+      padding: 28px 28px 40px;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+
+    .chart-card--wide {
+      grid-column: 1 / -1;
+    }
+
+    @media (max-width: 860px) {
+      .charts-grid { grid-template-columns: 1fr; }
+      .chart-card--wide { grid-column: auto; }
+    }
+
+    /* -----------------------------------------------------------------------
+       Glassmorphism card
+    ----------------------------------------------------------------------- */
+    .chart-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .chart-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--grad-start), var(--grad-end));
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+
+    .chart-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .card-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: rgba(124, 58, 237, 0.2);
+      color: #c4b5fd;
+      border: 1px solid rgba(124, 58, 237, 0.3);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .card-badge.green  { background: rgba(16,185,129,0.2); color:#6ee7b7; border-color:rgba(16,185,129,0.3); }
+    .card-badge.blue   { background: rgba(37,99,235,0.2);  color:#93c5fd; border-color:rgba(37,99,235,0.3); }
+    .card-badge.cyan   { background: rgba(6,182,212,0.2);  color:#67e8f9; border-color:rgba(6,182,212,0.3); }
+
+    .chart-container {
+      position: relative;
+      width: 100%;
+    }
+
+    .chart-container--doughnut { height: 280px; }
+    .chart-container--bar      { height: 280px; }
+    .chart-container--line     { height: 300px; }
+
+    /* Empty-state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      gap: 8px;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+
+    .empty-state .icon { font-size: 2rem; opacity: 0.5; }
+
+    /* -----------------------------------------------------------------------
+       Footer
+    ----------------------------------------------------------------------- */
+    footer {
+      text-align: center;
+      padding: 16px 32px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    /* -----------------------------------------------------------------------
+       Skeleton loading shimmer
+    ----------------------------------------------------------------------- */
+    @keyframes shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position: 400px 0; }
+    }
+
+    .skeleton {
+      border-radius: var(--radius-md);
+      background: linear-gradient(90deg,
+        rgba(255,255,255,0.04) 25%,
+        rgba(255,255,255,0.08) 50%,
+        rgba(255,255,255,0.04) 75%);
+      background-size: 800px 100%;
+      animation: shimmer 1.5s infinite;
+    }
+  </style>
+</head>
+
+<body>
+<div class="layout">
+
+  <!-- ======================================================================
+       Header
+  ====================================================================== -->
+  <header>
+    <div class="header-inner">
+      <div class="header-title-group">
+        <h1 class="header-title">🏪 Petrol Pumps Analytics</h1>
+        <p class="header-subtitle">
+          <span class="live-dot"></span>
+          Live data · refreshing every 5 s
+        </p>
+      </div>
+      <div class="stat-pills">
+        <div class="pill">
+          <span class="pill-label">Cities</span>
+          <span id="stat-cities">—</span>
+        </div>
+        <div class="pill">
+          <span class="pill-label">Total Revenue</span>
+          ₹<span id="stat-revenue">—</span>
+        </div>
+        <div class="pill">
+          <span class="pill-label">Total Qty</span>
+          <span id="stat-qty">—</span> L
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ======================================================================
+       Status bar
+  ====================================================================== -->
+  <div class="status-bar">
+    🔄 Last updated: <span id="last-updated">loading…</span>
+  </div>
+
+  <!-- ======================================================================
+       Charts
+  ====================================================================== -->
+  <main>
+    <div class="charts-grid">
+
+      <!-- Card 1: Doughnut — City Revenue Share -->
+      <div class="chart-card">
+        <div class="card-header">
+          <h2 class="card-title">🍩 Top Cities by Revenue</h2>
+          <span class="card-badge">Live</span>
+        </div>
+        <div class="chart-container chart-container--doughnut">
+          <canvas id="doughnutChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Card 2: Horizontal Bar — Revenue Leaderboard -->
+      <div class="chart-card">
+        <div class="card-header">
+          <h2 class="card-title">🏆 Revenue Leaderboard</h2>
+          <span class="card-badge green">Top 10</span>
+        </div>
+        <div class="chart-container chart-container--bar">
+          <canvas id="barChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Card 3: Area Line — Daily Revenue Trend (full width) -->
+      <div class="chart-card chart-card--wide">
+        <div class="card-header">
+          <h2 class="card-title">📈 Daily Revenue Trend</h2>
+          <span class="card-badge cyan">Qty &amp; Revenue</span>
+        </div>
+        <div class="chart-container chart-container--line">
+          <canvas id="lineChart"></canvas>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ======================================================================
+       Footer
+  ====================================================================== -->
+  <footer>
+    pumps-analyzer-app · Spring Boot 3.2 · Kafka · PostgreSQL · Chart.js 4
+  </footer>
+
+</div><!-- /.layout -->
+
+<!-- ========================================================================
+     JavaScript — Chart.js initialisation & live refresh
+======================================================================== -->
+<script>
+  /* -------------------------------------------------------------------------
+     Chart.js global defaults
+  ------------------------------------------------------------------------- */
+  Chart.defaults.color = '#94a3b8';
+  Chart.defaults.font.family = "'Inter', sans-serif";
+
+  const PURPLE = '#7c3aed';
+  const BLUE   = '#2563eb';
+  const CYAN   = '#06b6d4';
+  const GREEN  = '#10b981';
+  const AMBER  = '#f59e0b';
+  const ROSE   = '#f43f5e';
+
+  // Palette for doughnut/bar slices
+  const PALETTE = [
+    '#7c3aed','#2563eb','#06b6d4','#10b981',
+    '#f59e0b','#f43f5e','#8b5cf6','#3b82f6',
+    '#22d3ee','#34d399'
+  ];
+
+  /* -------------------------------------------------------------------------
+     Chart instances
+  ------------------------------------------------------------------------- */
+  let doughnutChart = null;
+  let barChart      = null;
+  let lineChart     = null;
+
+  /* -------------------------------------------------------------------------
+     Utility: format large numbers
+  ------------------------------------------------------------------------- */
+  function fmt(n) {
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+    if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
+    return String(n);
+  }
+
+  /* -------------------------------------------------------------------------
+     Doughnut Chart
+  ------------------------------------------------------------------------- */
+  function initDoughnut(labels, data) {
+    const ctx = document.getElementById('doughnutChart').getContext('2d');
+    doughnutChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: PALETTE,
+          borderColor: '#0f172a',
+          borderWidth: 3,
+          hoverOffset: 12
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '68%',
+        animation: { duration: 600, easing: 'easeInOutQuart' },
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: {
+              padding: 16,
+              boxWidth: 12,
+              boxHeight: 12,
+              borderRadius: 4,
+              font: { size: 11, weight: '500' }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ₹${fmt(ctx.parsed)}`
+            }
+          }
+        }
+      }
+    });
+  }
+
+  /* -------------------------------------------------------------------------
+     Horizontal Bar Chart
+  ------------------------------------------------------------------------- */
+  function initBar(labels, data) {
+    const ctx = document.getElementById('barChart').getContext('2d');
+    barChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Revenue (₹)',
+          data,
+          backgroundColor: PALETTE,
+          borderRadius: 6,
+          borderSkipped: false,
+          maxBarThickness: 28
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 600, easing: 'easeInOutQuart' },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { callback: v => '₹' + fmt(v) }
+          },
+          y: {
+            grid: { display: false },
+            ticks: { font: { weight: '600' } }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ₹${ctx.parsed.x.toLocaleString('en-IN')}`
+            }
+          }
+        }
+      }
+    });
+  }
+
+  /* -------------------------------------------------------------------------
+     Area / Line Chart
+  ------------------------------------------------------------------------- */
+  function initLine(labels, qtyData, amtData) {
+    const ctx = document.getElementById('lineChart').getContext('2d');
+
+    // Gradient fills
+    const gradAmt = ctx.createLinearGradient(0, 0, 0, 300);
+    gradAmt.addColorStop(0, 'rgba(124, 58, 237, 0.35)');
+    gradAmt.addColorStop(1, 'rgba(124, 58, 237, 0.00)');
+
+    const gradQty = ctx.createLinearGradient(0, 0, 0, 300);
+    gradQty.addColorStop(0, 'rgba(6, 182, 212, 0.30)');
+    gradQty.addColorStop(1, 'rgba(6, 182, 212, 0.00)');
+
+    lineChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Revenue (₹)',
+            data: amtData,
+            borderColor: PURPLE,
+            backgroundColor: gradAmt,
+            fill: true,
+            tension: 0.45,
+            pointRadius: 4,
+            pointHoverRadius: 7,
+            pointBackgroundColor: PURPLE,
+            yAxisID: 'yAmt'
+          },
+          {
+            label: 'Quantity (L)',
+            data: qtyData,
+            borderColor: CYAN,
+            backgroundColor: gradQty,
+            fill: true,
+            tension: 0.45,
+            pointRadius: 4,
+            pointHoverRadius: 7,
+            pointBackgroundColor: CYAN,
+            yAxisID: 'yQty'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        animation: { duration: 600, easing: 'easeInOutQuart' },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: { maxTicksLimit: 10 }
+          },
+          yAmt: {
+            type: 'linear',
+            position: 'left',
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { callback: v => '₹' + fmt(v) }
+          },
+          yQty: {
+            type: 'linear',
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            ticks: { callback: v => fmt(v) + ' L' }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            align: 'end',
+            labels: {
+              boxWidth: 12, boxHeight: 12,
+              borderRadius: 4,
+              font: { size: 11, weight: '500' }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const v = ctx.parsed.y;
+                return ctx.datasetIndex === 0
+                  ? ` ₹${v.toLocaleString('en-IN')}`
+                  : ` ${v.toLocaleString('en-IN')} L`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  /* -------------------------------------------------------------------------
+     Update helpers (smooth data refresh without destroying charts)
+  ------------------------------------------------------------------------- */
+  function updateDoughnut(labels, data) {
+    doughnutChart.data.labels = labels;
+    doughnutChart.data.datasets[0].data = data;
+    doughnutChart.update('active');
+  }
+
+  function updateBar(labels, data) {
+    barChart.data.labels = labels;
+    barChart.data.datasets[0].data = data;
+    barChart.update('active');
+  }
+
+  function updateLine(labels, qtyData, amtData) {
+    lineChart.data.labels = labels;
+    lineChart.data.datasets[0].data = amtData;
+    lineChart.data.datasets[1].data = qtyData;
+    lineChart.update('active');
+  }
+
+  /* -------------------------------------------------------------------------
+     Stat pills
+  ------------------------------------------------------------------------- */
+  function updateStatPills(cityData, dailyData) {
+    document.getElementById('stat-cities').textContent = cityData.length;
+
+    const totalRev = cityData.reduce((s, c) => s + (c.totalAmt || 0), 0);
+    document.getElementById('stat-revenue').textContent = fmt(totalRev);
+
+    const totalQty = (dailyData.qty || []).reduce((s, v) => s + v, 0);
+    document.getElementById('stat-qty').textContent = fmt(totalQty);
+  }
+
+  /* -------------------------------------------------------------------------
+     Fetch & render / update
+  ------------------------------------------------------------------------- */
+  async function fetchAndUpdate() {
+    try {
+      const [cityRes, dailyRes] = await Promise.all([
+        fetch('/api/city-revenue'),
+        fetch('/api/daily-revenue')
+      ]);
+      const cityData  = await cityRes.json();
+      const dailyData = await dailyRes.json();
+
+      const cityLabels  = cityData.map(c => c.city);
+      const cityAmounts = cityData.map(c => c.totalAmt);
+      const dailyLabels = dailyData.dates || [];
+      const dailyQty    = dailyData.qty   || [];
+      const dailyAmt    = dailyData.amt   || [];
+
+      if (!doughnutChart) initDoughnut(cityLabels, cityAmounts);
+      else updateDoughnut(cityLabels, cityAmounts);
+
+      if (!barChart) initBar(cityLabels, cityAmounts);
+      else updateBar(cityLabels, cityAmounts);
+
+      if (!lineChart) initLine(dailyLabels, dailyQty, dailyAmt);
+      else updateLine(dailyLabels, dailyQty, dailyAmt);
+
+      updateStatPills(cityData, dailyData);
+
+      // Timestamp
+      const now = new Date();
+      document.getElementById('last-updated').textContent =
+        now.toLocaleTimeString('en-IN', { hour12: false });
+
+    } catch (err) {
+      console.warn('Dashboard fetch error:', err);
+      document.getElementById('last-updated').textContent = 'error — retrying…';
+    }
+  }
+
+  /* -------------------------------------------------------------------------
+     Bootstrap on DOMContentLoaded
+  ------------------------------------------------------------------------- */
+  document.addEventListener('DOMContentLoaded', () => {
+    fetchAndUpdate();
+    setInterval(fetchAndUpdate, 5000);
+  });
+</script>
+</body>
+</html>

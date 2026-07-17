@@ -1,0 +1,3 @@
+rootProject.name = 'kafka-spark-processor'
+include 'java-app'
+include 'scala-app'
