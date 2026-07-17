@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: Imagic
+
+server:
+  servlet:
+    context-path: /imj
+  http2:
+    enabled: true
+
+application:
+  title: Imagic Title
+
+springdoc.packages-to-scan: com.example.imagic.resource
+springdoc.api-docs.enabled: true
+springdoc.api-docs.path: /v3/api-docs
+management.metrics.export.simple.enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+  endpoint:
+    beans:
+      cache:
+        time-to-live: 10s
+
